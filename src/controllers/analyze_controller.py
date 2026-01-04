@@ -26,6 +26,7 @@ def create_analyze_blueprint(service: KnowledgeGraphService) -> Blueprint:
         top_k = data.get("top_k", 5)
         max_hops = data.get("max_hops", 2)
         hub_threshold = data.get("hub_threshold")
+        idempotence_key = data.get("idempotence_key")
 
         try:
             top_k = int(top_k)
@@ -48,6 +49,7 @@ def create_analyze_blueprint(service: KnowledgeGraphService) -> Blueprint:
                     top_k=top_k,
                     max_hops=max_hops,
                     hub_threshold=hub_threshold,
+                    idempotence_key=idempotence_key,
                 )
             )
         except FileNotFoundError as exc:

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -12,6 +13,7 @@ from .infrastructure import (
     PromptRepository,
     RDFBuilder,
     SkosGraphGateway,
+    RequestLogger,
 )
 
 
@@ -32,6 +34,11 @@ def create_app() -> Flask:
     neo4j_config = Neo4jConfig.from_env()
     graph_gateway = SkosGraphGateway(config=neo4j_config)
     rdf_builder = RDFBuilder()
+    rdf_log_path_env = os.getenv("RDF_LOG_PATH")
+    rdf_log_path = Path(rdf_log_path_env) 
+    analyze_log_path_env = os.getenv("ANALYZE_LOG_PATH")
+    analyze_log_path = Path(analyze_log_path_env) 
+    request_logger = RequestLogger(log_path=analyze_log_path)
 
     service = KnowledgeGraphService(
         prompt_repository,
@@ -43,6 +50,8 @@ def create_app() -> Flask:
         ollama_client=ollama_client,
         graph_gateway=graph_gateway,
         rdf_builder=rdf_builder,
+        rdf_log_path=rdf_log_path,
+        request_logger=request_logger,
     )
     app.register_blueprint(create_analyze_blueprint(service))
 

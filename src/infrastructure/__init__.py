@@ -2,6 +2,7 @@ from .neo4j_client import Neo4jConfig, SkosGraphGateway
 from .ollama_client import OllamaClient, OllamaClientConfig, OllamaOptions
 from .prompt_repository import PromptRepository
 from .rdf_builder import RDFBuilder
+from .request_logger import RequestLogger
 
 __all__ = [
     "Neo4jConfig",
@@ -11,4 +12,5 @@ __all__ = [
     "OllamaOptions",
     "PromptRepository",
     "RDFBuilder",
+    "RequestLogger",
 ]

@@ -12,6 +12,7 @@ class AnalyzeRequest:
     top_k: int = 5
     max_hops: int = 2
     hub_threshold: int | None = None
+    idempotence_key: str | None = None
 
 
 @dataclass(frozen=True)

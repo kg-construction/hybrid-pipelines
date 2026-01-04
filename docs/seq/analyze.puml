@@ -1,0 +1,99 @@
+﻿@startuml
+actor User
+boundary ClientApp as Client
+
+box "Flask App" #EFEFEF
+  control "Analyze Controller" as Controller
+  control "KnowledgeGraphService" as Service
+  entity "PromptRepository" as Repo
+  control "OllamaClient" as OC
+  control "SkosGraphGateway" as Neo
+  control "RDFBuilder" as RDF
+end box
+
+collections "Prompt files\n(prompt/)" as PromptFiles
+database "CSV log\n(OLLAMA_CSV_PATH)" as CSV
+database "Neo4j SKOS\n(full-text + graph)" as Neo4jDB
+boundary "Ollama /api/generate" as OA
+
+User -> Client: Request analysis
+Client -> Controller ++: POST /analyze {text, prompt_name?, system_prompt_name?, top_k?, max_hops?, hub_threshold?}
+note right of Controller
+payload example:
+{
+  "text": "Graph theory underpins network science.",
+  "prompt_name": "prompts/ner-acm-ccs.txt",
+  "system_prompt_name": "system/knowledge_graph.txt"
+}
+end note
+Controller -> Controller: validate text present
+Controller -> Service ++: build AnalyzeRequest
+
+Service -> Repo ++: load system prompt (default or override)
+Repo -> PromptFiles: read system prompt file
+Repo --> Service --: system prompt text
+Service -> Repo ++: load NER prompt
+Repo -> PromptFiles: read prompt template file
+Repo --> Service --: prompt template text
+Service -> Service: build NER message (${USER_TEXT} replace)
+
+Service -> OC ++: generate(system, prompt, prompt_name=NER, input_text)
+note right of OC
+POST to Ollama with:
+- model: OLLAMA_MODEL
+- url: OLLAMA_API_URL/api/generate
+- options: OLLAMA_* (seed, temperature, top_k, top_p, min_p, stop, num_ctx, num_predict)
+- stream: false
+end note
+OC -> OA ++: POST /api/generate {model, system, prompt, options, stream:false}
+OA --> OC --: JSON payload (response, timings, done_reason)
+
+OC -> CSV ++: append row (prompt_name, input_text, response, rdf flags)
+CSV --> OC --: logged
+OC --> Service --: NER generation payload (mentions JSON)
+
+Service -> Neo ++: search_candidates(surface, top_k)
+Neo -> Neo4jDB: full-text query prefLabel/altLabel
+Neo --> Service --: candidate list per mention
+
+Service -> Neo ++: shortest_path(c1, c2, max_hops, hub_threshold)
+Neo -> Neo4jDB: shortestPath / GDS
+Neo --> Service --: path steps
+note right of Neo
+- uses GDS shortestPath when available
+- can drop hub nodes (hub_threshold)
+- falls back to in-memory BFS if Neo4j is unavailable
+end note
+
+Service -> Repo ++: load path-to-text prompt
+Repo -> PromptFiles: read path prompt
+Repo --> Service --: prompt
+Service -> OC ++: generate(path-to-text)
+OC -> OA ++: POST /api/generate
+OA --> OC --: JSON list of path phrases
+OC --> Service --: path translation
+
+Service -> Repo ++: load path-summary prompt
+Repo --> Service --: prompt
+Service -> OC ++: generate(path-summary)
+OC -> OA ++: POST /api/generate
+OA --> OC --: summary text
+OC --> Service --: summary
+
+Service -> Repo ++: load candidate-decision prompt
+Repo --> Service --: prompt
+Service -> OC ++: generate(candidate-decision)
+OC -> OA ++: POST /api/generate
+OA --> OC --: chosen concept JSON
+OC --> Service --: decision payloads
+
+Service -> RDF ++: build RDF (doc + mentions + SKOS links)
+RDF --> Service --: Turtle + JSON-LD
+note right of RDF
+Document URI = ex:Document/<hash>
+Mentions linked via ex:denotes + ex:hasTopic to SKOS concepts
+end note
+Service --> Controller --: AnalyzeResponse.to_dict()
+Controller --> Client --: 200 {mentions, candidates, disambiguation, rdf, generation}
+Client --> User: Show result
+@enduml

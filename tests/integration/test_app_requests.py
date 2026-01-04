@@ -85,7 +85,7 @@ def stub_ollama(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture()
-def client(monkeypatch: pytest.MonkeyPatch, prompt_dir: Path, patch_prompt_repo, stub_graph, stub_ollama):
+def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, prompt_dir: Path, patch_prompt_repo, stub_graph, stub_ollama):
     monkeypatch.setenv("DEFAULT_PROMPT_NAME", "ner.txt")
     monkeypatch.setenv("DEFAULT_SYSTEM_PROMPT_NAME", "system.txt")
     monkeypatch.setenv("PATH_TO_TEXT_PROMPT_NAME", "path.txt")
@@ -93,15 +93,18 @@ def client(monkeypatch: pytest.MonkeyPatch, prompt_dir: Path, patch_prompt_repo,
     monkeypatch.setenv("CANDIDATE_DECISION_PROMPT_NAME", "decision.txt")
     monkeypatch.setenv("OLLAMA_API_URL", "http://localhost:11434")
     monkeypatch.setenv("OLLAMA_MODEL", "llama3:8b")
+    rdf_log = tmp_path / "rdf_results.csv"
+    monkeypatch.setenv("RDF_LOG_PATH", str(rdf_log))
 
     app = create_app()
     app.config.update({"TESTING": True})
 
     with app.test_client() as client:
-        yield client
+        yield client, rdf_log
 
 
 def test_analyze_request_flow(client):
+    client, rdf_log = client
     payload = {"text": "graph theory is important", "prompt_name": "ner.txt", "system_prompt_name": "system.txt", "top_k": 1}
     resp = client.post("/analyze", data=json.dumps(payload), content_type="application/json")
 
@@ -110,9 +113,11 @@ def test_analyze_request_flow(client):
     assert data["mentions"]["mentions"][0]["surface"] == "graph theory"
     assert data["candidate_selections"][0]["candidates"][0]["iri"] == "http://example.org/concept/1"
     assert "hasTopic" in data["rdf"]["turtle"]
+    assert rdf_log.exists()
 
 
 def test_health_endpoint(client):
+    client, _ = client
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.get_json()

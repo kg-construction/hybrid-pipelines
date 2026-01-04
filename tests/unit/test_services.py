@@ -64,7 +64,7 @@ class StubGraphGateway:
         return {"status": "ok"}
 
 
-def test_analyze_pipeline_builds_rdf():
+def test_analyze_pipeline_builds_rdf(tmp_path: Path):
     prompts = {
         "ner": "NER ${USER_TEXT}",
         "system": "System prompt",
@@ -76,6 +76,7 @@ def test_analyze_pipeline_builds_rdf():
     ollama = StubOllamaClient()
     graph = StubGraphGateway()
     rdf_builder = RDFBuilder(base_namespace="http://example.org/")
+    rdf_log_path = tmp_path / "rdf_log.csv"
 
     service = KnowledgeGraphService(
         prompt_repository=repo,
@@ -87,6 +88,7 @@ def test_analyze_pipeline_builds_rdf():
         ollama_client=ollama,
         graph_gateway=graph,
         rdf_builder=rdf_builder,
+        rdf_log_path=rdf_log_path,
     )
 
     request = AnalyzeRequest(text="graph theory advances", prompt_name="ner", system_prompt_name="system", top_k=2, max_hops=2)
@@ -99,3 +101,4 @@ def test_analyze_pipeline_builds_rdf():
     assert response.generation["ner"]["response"]
     assert graph.search_calls
     assert graph.path_calls
+    assert rdf_log_path.exists()
