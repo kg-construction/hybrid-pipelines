@@ -1,0 +1,38 @@
+start_time,end_time,input_text,rdf_turtle,model,rdf_valid
+2026-01-04T14:46:48.390967+00:00,2026-01-04T14:47:23.729324+00:00,We present a simple new method where an emergent NMT system is used for simultaneously selecting training data and learning internal NMT representations . This is done in a self-supervised way without parallel data in such a way that both tasks enhance each other during training . The method is language independent introduces no additional hyper-parameters and achieves BLEU scores of 29.21 (en2fr) and 27.36 (fr2en) on newstest2014 using English and French Wikipedia data for training,"@prefix ex: <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/Document/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5> a ex:Document ;
+    ex:hasTopic <file:///E:/kg-construction-lll-evaluation/hybrid-pipelines/data/10010405.10010462.10010467>,
+        <http://schema.org/Methode>,
+        <http://www.w3.org/2004/02/skos#notation> ;
+    ex:mentions <http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/0>,
+        <http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/1>,
+        <http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/2> .
+
+<http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/0> a ex:Mention ;
+    rdfs:label ""method"" ;
+    ex:denotes <http://schema.org/Methode> ;
+    ex:endOffset 19 ;
+    ex:startOffset 14 .
+
+<http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/1> a ex:Mention ;
+    rdfs:label ""NMT system"" ;
+    ex:denotes <file:///E:/kg-construction-lll-evaluation/hybrid-pipelines/data/10010405.10010462.10010467> ;
+    ex:endOffset 32 ;
+    ex:startOffset 25 .
+
+<http://example.org/Mention/77e671af385df5f63a471e6820876dea89c6f7dc21d7cc9c613ec1a9228646a5/2> a ex:Mention ;
+    rdfs:label ""BLEU scores"" ;
+    ex:denotes <http://www.w3.org/2004/02/skos#notation> ;
+    ex:endOffset 72 ;
+    ex:startOffset 63 .
+
+<file:///E:/kg-construction-lll-evaluation/hybrid-pipelines/data/10010405.10010462.10010467> rdfs:label ""S"" .
+
+<http://schema.org/Methode> rdfs:label ""method"" .
+
+<http://www.w3.org/2004/02/skos#notation> rdfs:label ""Notation"" .
+
+",llama3:8b,True

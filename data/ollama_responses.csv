@@ -1,0 +1,104 @@
+prompt_name,input_text,model,created_at,response,thinking,done,done_reason,total_duration,load_duration,prompt_eval_count,prompt_eval_duration,eval_count,eval_duration,logprobs,rdf_valid,rdf_note
+prompts/ner-acm-ccs.txt,We present a simple new method where an emergent NMT system is used for simultaneously selecting training data and learning internal NMT representations . This is done in a self-supervised way without parallel data in such a way that both tasks enhance each other during training . The method is language independent introduces no additional hyper-parameters and achieves BLEU scores of 29.21 (en2fr) and 27.36 (fr2en) on newstest2014 using English and French Wikipedia data for training,llama3:8b,2026-01-04T14:39:27.2312967Z,"{
+  ""mentions"": [
+    {
+      ""surface"": ""method"",
+      ""label"": ""Method"",
+      ""start"": 14,
+      ""end"": 18,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""NMT system"",
+      ""label"": ""Algorithm"",
+      ""start"": 23,
+      ""end"": 30,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""BLEU scores"",
+      ""label"": ""Metric"",
+      ""start"": 64,
+      ""end"": 71,
+      ""confidence"": 1.0
+    }
+  ]
+}",,True,stop,30417488700,17736950500,317,2555724300,137,9978221000,null,False,Response not recognized as RDF/Turtle.
+prompts/ner-acm-ccs.txt,We present a simple new method where an emergent NMT system is used for simultaneously selecting training data and learning internal NMT representations . This is done in a self-supervised way without parallel data in such a way that both tasks enhance each other during training . The method is language independent introduces no additional hyper-parameters and achieves BLEU scores of 29.21 (en2fr) and 27.36 (fr2en) on newstest2014 using English and French Wikipedia data for training,llama3:8b,2026-01-04T14:42:10.0288178Z,"{
+  ""mentions"": [
+    {
+      ""surface"": ""method"",
+      ""label"": ""Method"",
+      ""start"": 14,
+      ""end"": 19,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""NMT system"",
+      ""label"": ""Algorithm"",
+      ""start"": 25,
+      ""end"": 32,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""BLEU scores"",
+      ""label"": ""Metric"",
+      ""start"": 63,
+      ""end"": 72,
+      ""confidence"": 1.0
+    }
+  ]
+}",,True,stop,10980506300,101713400,317,234987100,137,10505959600,null,False,Response not recognized as RDF/Turtle.
+prompts/ner-acm-ccs.txt,We present a simple new method where an emergent NMT system is used for simultaneously selecting training data and learning internal NMT representations . This is done in a self-supervised way without parallel data in such a way that both tasks enhance each other during training . The method is language independent introduces no additional hyper-parameters and achieves BLEU scores of 29.21 (en2fr) and 27.36 (fr2en) on newstest2014 using English and French Wikipedia data for training,llama3:8b,2026-01-04T14:44:28.8479053Z,"{
+  ""mentions"": [
+    {
+      ""surface"": ""method"",
+      ""label"": ""Method"",
+      ""start"": 14,
+      ""end"": 19,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""NMT system"",
+      ""label"": ""Algorithm"",
+      ""start"": 25,
+      ""end"": 32,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""BLEU scores"",
+      ""label"": ""Metric"",
+      ""start"": 63,
+      ""end"": 72,
+      ""confidence"": 1.0
+    }
+  ]
+}",,True,stop,10754000500,97435800,317,258657400,137,10243542200,null,False,Response not recognized as RDF/Turtle.
+prompts/ner-acm-ccs.txt,We present a simple new method where an emergent NMT system is used for simultaneously selecting training data and learning internal NMT representations . This is done in a self-supervised way without parallel data in such a way that both tasks enhance each other during training . The method is language independent introduces no additional hyper-parameters and achieves BLEU scores of 29.21 (en2fr) and 27.36 (fr2en) on newstest2014 using English and French Wikipedia data for training,llama3:8b,2026-01-04T14:47:01.1382942Z,"{
+  ""mentions"": [
+    {
+      ""surface"": ""method"",
+      ""label"": ""Method"",
+      ""start"": 14,
+      ""end"": 19,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""NMT system"",
+      ""label"": ""Algorithm"",
+      ""start"": 25,
+      ""end"": 32,
+      ""confidence"": 1.0
+    },
+    {
+      ""surface"": ""BLEU scores"",
+      ""label"": ""Metric"",
+      ""start"": 63,
+      ""end"": 72,
+      ""confidence"": 1.0
+    }
+  ]
+}",,True,stop,10697661800,104058400,317,225825900,137,10236354500,null,False,Response not recognized as RDF/Turtle.
+prompts/candidate-decision.txt,,llama3:8b,2026-01-04T14:47:07.394541Z,"{""iri"": ""http://schema.org/Methode"", ""label"": ""method"", ""score"": 1.0, ""reason"": ""exact match in surface""}",,True,stop,3742984000,97472400,210,1192360500,36,2415394100,null,False,Response not recognized as RDF/Turtle.
+prompts/candidate-decision.txt,,llama3:8b,2026-01-04T14:47:17.0043031Z,"{""iri"": ""file:///E:/kg-construction-lll-evaluation/hybrid-pipelines/data/10010405.10010462.10010467"", ""label"": ""S"", ""score"": 1.0, ""reason"": ""surface and context match""}",,True,stop,7564420000,97066600,492,3354559000,58,4054016100,null,False,Response not recognized as RDF/Turtle.
+prompts/candidate-decision.txt,,llama3:8b,2026-01-04T14:47:23.7150084Z,"{""iri"": ""http://www.w3.org/2004/02/skos#notation"", ""label"": ""Notation"", ""score"": 0.8, ""reason"": ""Contextual evidence matches SKOS concept label""}",,True,stop,4675026800,101951700,219,1159985700,49,3362815000,null,False,Response not recognized as RDF/Turtle.

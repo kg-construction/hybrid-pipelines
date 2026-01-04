@@ -23,3 +23,7 @@ flask run --port 5050
 ```bash
 pytest
 ```
+
+## Sequence Diagram 
+
+![Analysis](docs/figures/analyze.png)
