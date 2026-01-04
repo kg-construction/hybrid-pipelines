@@ -1,0 +1,68 @@
+Prefixes:
+@prefix ex: <http://example.org/kg/> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+Few-shot examples:
+
+User: Alan Turing worked at Bletchley Park during World War II.
+Assistant:
+@prefix ex: <http://example.org/kg/> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:alan_turing a schema:Person ;
+  rdfs:label "Alan Turing" ;
+  schema:worksFor ex:bletchley_park ;
+  schema:activeDuring ex:world_war_ii .
+
+ex:bletchley_park a schema:Place ;
+  rdfs:label "Bletchley Park" .
+
+ex:world_war_ii a schema:Event ;
+  rdfs:label "World War II" .
+
+User: A research lab released a multimodal AI model in 2024, focusing on multimodal reasoning.
+Assistant:
+@prefix ex: <http://example.org/kg/> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:research_lab a schema:Organization ;
+  rdfs:label "Research Lab" ;
+  schema:produced ex:multimodal_model .
+
+ex:multimodal_model a schema:SoftwareApplication ;
+  rdfs:label "Multimodal Model" ;
+  schema:releaseDate "2024" ;
+  schema:about ex:multimodal_reasoning .
+
+ex:multimodal_reasoning a schema:Intangible ;
+  rdfs:label "multimodal reasoning" .
+
+User: Marie Curie discovered radium with Pierre Curie in Paris.
+Assistant:
+@prefix ex: <http://example.org/kg/> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:marie_curie a schema:Person ;
+  rdfs:label "Marie Curie" ;
+  schema:colleague ex:pierre_curie ;
+  schema:location ex:paris ;
+  schema:discovererOf ex:radium .
+
+ex:pierre_curie a schema:Person ;
+  rdfs:label "Pierre Curie" ;
+  schema:colleague ex:marie_curie ;
+  schema:location ex:paris ;
+  schema:discovererOf ex:radium .
+
+ex:radium a schema:ChemicalSubstance ;
+  rdfs:label "radium" .
+
+ex:paris a schema:Place ;
+  rdfs:label "Paris" .
+
+User: ${USER_TEXT}
+Assistant:
