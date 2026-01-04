@@ -122,12 +122,16 @@ class SkosGraphGateway:
         max_hops: int,
         hub_threshold: int | None = None,
     ) -> list[PathStep] | None:
-        query = """
-        MATCH (source {uri: $source_iri}) 
-        MATCH (target {uri: $target_iri})
-        MATCH p=shortestPath((source)-[:broader|:narrower|:related*..$max_hops]-(target))
+        hops = max(1, int(max_hops))
+        query = f"""
+        MATCH (source {{uri: $source_iri}}) 
+        MATCH (target {{uri: $target_iri}})
+        MATCH p=shortestPath((source)-[:broader|narrower|related*..{hops}]-(target))
         WITH p, nodes(p) AS ns, relationships(p) AS rels
-        WHERE $hub_threshold IS NULL OR ALL(n IN ns WHERE size((n)--()) <= $hub_threshold)
+        UNWIND ns AS node
+        WITH p, ns, rels, node, COUNT {{ (node)-[]-() }} AS node_degree
+        WITH p, ns, rels, collect(node_degree) AS degrees
+        WHERE $hub_threshold IS NULL OR ALL(deg IN degrees WHERE deg <= $hub_threshold)
         RETURN ns AS nodes, rels AS rels
         LIMIT 1
         """
