@@ -6,6 +6,10 @@ Flask API that turns free text (e.g., paper abstracts) into a SKOS-aligned RDF k
 3) **Candidate disambiguation** using shortest paths -> path-to-text -> summarization -> LLM decision
 4) **RDF materialization** (Turtle + JSON-LD) with document/mention nodes and SKOS links
 
+## Process Flow
+
+![Process Flow](docs/figures/process.jpg)
+
 ## Project Layout
 - `src/` — Flask app (DDD-ish layering: controllers/application/domain/infrastructure)
 - `prompt/` — system + step-specific prompts (NER, path translation, summary, decision)
