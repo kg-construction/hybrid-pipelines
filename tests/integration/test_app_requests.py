@@ -110,9 +110,8 @@ def test_analyze_request_flow(client):
 
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["mentions"]["mentions"][0]["surface"] == "graph theory"
-    assert data["candidate_selections"][0]["candidates"][0]["iri"] == "http://example.org/concept/1"
-    assert "hasTopic" in data["rdf"]["turtle"]
+    assert data["text"] == "graph theory is important"
+    assert "hasTopic" in data["rdf"]
     assert rdf_log.exists()
 
 

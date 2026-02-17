@@ -75,8 +75,8 @@ def test_analyze_happy_path():
 
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["mentions"]["mentions"][0]["surface"] == "AI"
-    assert data["rdf"]["turtle"].startswith("@prefix")
+    assert data["text"] == "AI improves science"
+    assert data["rdf"].startswith("@prefix")
     assert service.called_with.top_k == 3
 
 

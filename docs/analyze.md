@@ -29,11 +29,7 @@
 - Example response (shape):
   ```json
   {
-    "text": "...",
-    "mentions": {"mentions":[{"surface":"graph theory","label":"Field",...}]},
-    "candidate_selections": [{"surface":"graph theory","candidates":[{"iri":"...","label":"...","score":0.9}]}],
-    "disambiguation": [{"surface":"graph theory","chosen":{"iri":"...","label":"..."},"evidence":{"paths":[...],"summary":"..."}}],
-    "rdf": {"document_uri":"http://example.org/Document/<hash>","turtle":"...","jsonld":"..."},
-    "generation": {"ner": {...}, "path_translation": {...}, "path_summary": {...}, "decisions": [...]}
+    "text": "Alice knows Bob.",
+    "rdf": "rdf.."
   }
   ```
