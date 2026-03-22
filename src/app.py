@@ -7,13 +7,13 @@ from flask import Flask
 from .application.services import KnowledgeGraphService
 from .controllers.analyze_controller import create_analyze_blueprint
 from .infrastructure import (
-    Neo4jConfig,
     OllamaClient,
     OllamaClientConfig,
     PromptRepository,
     RDFBuilder,
-    SkosGraphGateway,
     RequestLogger,
+    WikidataConfig,
+    WikidataGateway,
 )
 
 
@@ -31,14 +31,14 @@ def create_app() -> Flask:
 
     ollama_config = OllamaClientConfig.from_env()
     ollama_client = OllamaClient(config=ollama_config)
-    neo4j_config = Neo4jConfig.from_env()
-    graph_gateway = SkosGraphGateway(config=neo4j_config)
+    wikidata_config = WikidataConfig.from_env()
+    graph_gateway = WikidataGateway(config=wikidata_config)
     rdf_builder = RDFBuilder()
     rdf_log_path_env = os.getenv("RDF_LOG_PATH")
-    rdf_log_path = Path(rdf_log_path_env) 
+    rdf_log_path = Path(rdf_log_path_env) if rdf_log_path_env else None
     analyze_log_path_env = os.getenv("ANALYZE_LOG_PATH")
-    analyze_log_path = Path(analyze_log_path_env) 
-    request_logger = RequestLogger(log_path=analyze_log_path)
+    analyze_log_path = Path(analyze_log_path_env) if analyze_log_path_env else None
+    request_logger = RequestLogger(log_path=analyze_log_path) if analyze_log_path else None
 
     service = KnowledgeGraphService(
         prompt_repository,

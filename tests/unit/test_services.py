@@ -50,15 +50,7 @@ class StubGraphGateway:
 
     def shortest_path(self, source_iri: str, target_iri: str, max_hops: int = 2, hub_threshold=None):
         self.path_calls.append({"source": source_iri, "target": target_iri, "max_hops": max_hops, "hub_threshold": hub_threshold})
-        return [
-            PathStep(
-                subject_iri=source_iri,
-                subject_label="A",
-                predicate="related",
-                object_iri=target_iri,
-                object_label="B",
-            )
-        ]
+        return None
 
     def health(self):
         return {"status": "ok"}
@@ -102,3 +94,66 @@ def test_analyze_pipeline_builds_rdf(tmp_path: Path):
     assert graph.search_calls
     assert graph.path_calls
     assert rdf_log_path.exists()
+
+
+def test_analyze_adds_heuristic_mentions_and_negated_copula_rdf(tmp_path: Path):
+    prompts = {
+        "ner": "NER ${USER_TEXT}",
+        "system": "System prompt",
+        "path": "Paths ${PATHS_JSON}",
+        "summary": "Summary ${PATH_SENTENCES_JSON}",
+        "decision": "Decision ${CANDIDATES_JSON}",
+    }
+
+    class MentionPoorOllama(StubOllamaClient):
+        def generate(self, system_prompt: str, prompt: str, prompt_name: str | None = None, input_text: str | None = None):
+            self.calls.append({"system": system_prompt, "prompt_name": prompt_name, "prompt": prompt, "input_text": input_text})
+            if prompt_name == "ner":
+                return {"response": json.dumps({"mentions": [{"surface": "Mango", "label": "Object", "start": 0, "end": 5, "confidence": 0.95}]})}
+            if prompt_name == "path":
+                return {"response": json.dumps([])}
+            if prompt_name == "summary":
+                return {"response": ""}
+            if prompt_name == "decision":
+                return {"response": "{}"}
+            return {"response": "{}"}
+
+    class SurfaceAwareGateway(StubGraphGateway):
+        def search_candidates(self, surface: str, limit: int = 5):
+            self.search_calls.append({"surface": surface, "limit": limit})
+            mapping = {
+                "mango": Candidate(iri="http://www.wikidata.org/entity/Q1054564", label="Mango", score=1.0),
+                "fruit": Candidate(iri="http://www.wikidata.org/entity/Q1364", label="fruit", score=1.0),
+                "tree": Candidate(iri="http://www.wikidata.org/entity/Q10884", label="tree", score=1.0),
+            }
+            candidate = mapping[surface.lower()]
+            return [candidate]
+
+    repo = DummyPromptRepo(prompts=prompts)
+    ollama = MentionPoorOllama()
+    graph = SurfaceAwareGateway()
+    rdf_builder = RDFBuilder(base_namespace="http://example.org/")
+    service = KnowledgeGraphService(
+        prompt_repository=repo,
+        default_prompt="ner",
+        default_system_prompt="system",
+        path_to_text_prompt="path",
+        path_summary_prompt="summary",
+        candidate_decision_prompt="decision",
+        ollama_client=ollama,
+        graph_gateway=graph,
+        rdf_builder=rdf_builder,
+        rdf_log_path=tmp_path / "rdf_log.csv",
+    )
+
+    response = service.analyze(AnalyzeRequest(text="Mango is not a fruit from a tree", prompt_name="ner", system_prompt_name="system", top_k=1))
+
+    surfaces = [selection.surface.lower() for selection in response.candidate_selections]
+    assert "mango" in surfaces
+    assert "fruit" in surfaces
+    assert "tree" in surfaces
+    assert "http://www.wikidata.org/entity/Q1054564" in response.rdf.turtle
+    assert "http://www.wikidata.org/entity/Q1364" in response.rdf.turtle
+    assert "http://www.wikidata.org/entity/Q10884" in response.rdf.turtle
+    assert 'ex:copulaVerb "is"' in response.rdf.turtle
+    assert "ex:negated true" in response.rdf.turtle

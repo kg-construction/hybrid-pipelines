@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 
 from rdflib import Graph, Literal, Namespace, RDF, RDFS, URIRef, XSD
 
@@ -11,6 +12,16 @@ class RDFBuilder:
     """
     Materializes RDF (Turtle and JSON-LD) for documents, mentions, and aligned SKOS concepts.
     """
+
+    _COPULA_PATTERN = re.compile(
+        r"\b(?P<subject>[A-Za-z][A-Za-z-]*)\s+"
+        r"(?P<verb>am|is|are|was|were)\s+"
+        r"(?P<negation>not\s+)?"
+        r"(?:(?:a|an|the)\s+)?"
+        r"(?P<object>[A-Za-z][A-Za-z-]*)"
+        r"(?:\s+(?P<prep>from|of|in|on|at|to)\s+(?:(?:a|an|the)\s+)?(?P<context>[A-Za-z][A-Za-z-]*))?",
+        flags=re.IGNORECASE,
+    )
 
     def __init__(self, base_namespace: str = "http://example.org/"):
         self.base_namespace = base_namespace if base_namespace.endswith("/") else f"{base_namespace}/"
@@ -53,7 +64,53 @@ class RDFBuilder:
             if mention.end is not None:
                 graph.add((mention_uri, URIRef(f"{self.ex}endOffset"), Literal(int(mention.end), datatype=XSD.integer)))
 
+        mention_entities = self._mention_entity_index(disambiguated_mentions)
+        for idx, assertion in enumerate(self._extract_assertions(text, mention_entities)):
+            assertion_uri = URIRef(f"{self.ex}Assertion/{doc_hash}/{idx}")
+            graph.add((assertion_uri, RDF.type, URIRef(f"{self.ex}Assertion")))
+            graph.add((document_uri, URIRef(f"{self.ex}asserts"), assertion_uri))
+            graph.add((assertion_uri, URIRef(f"{self.ex}copulaVerb"), Literal(assertion["verb"])))
+            graph.add((assertion_uri, URIRef(f"{self.ex}negated"), Literal(bool(assertion["negated"]), datatype=XSD.boolean)))
+            graph.add((assertion_uri, URIRef(f"{self.ex}surfaceText"), Literal(assertion["surface_text"])))
+
+            subject_uri = assertion.get("subject_uri")
+            object_uri = assertion.get("object_uri")
+            context_uri = assertion.get("context_uri")
+            if subject_uri:
+                graph.add((assertion_uri, URIRef(f"{self.ex}subject"), URIRef(subject_uri)))
+            if object_uri:
+                graph.add((assertion_uri, URIRef(f"{self.ex}object"), URIRef(object_uri)))
+            if context_uri:
+                graph.add((assertion_uri, URIRef(f"{self.ex}contextEntity"), URIRef(context_uri)))
+                graph.add((assertion_uri, URIRef(f"{self.ex}contextPreposition"), Literal(assertion["prep"])))
+
         turtle = graph.serialize(format="turtle")
         jsonld = graph.serialize(format="json-ld")
 
         return RDFGraphResult(document_uri=str(document_uri), turtle=turtle, jsonld=jsonld)
+
+    def _mention_entity_index(self, disambiguated_mentions: list[DisambiguatedMention]) -> dict[str, str]:
+        index: dict[str, str] = {}
+        for mention in disambiguated_mentions:
+            if mention.chosen and mention.surface:
+                index[mention.surface.casefold()] = mention.chosen.iri
+        return index
+
+    def _extract_assertions(self, text: str, mention_entities: dict[str, str]) -> list[dict]:
+        assertions: list[dict] = []
+        for match in self._COPULA_PATTERN.finditer(text):
+            subject = match.group("subject")
+            obj = match.group("object")
+            context = match.group("context")
+            assertions.append(
+                {
+                    "subject_uri": mention_entities.get(subject.casefold()),
+                    "object_uri": mention_entities.get(obj.casefold()),
+                    "context_uri": mention_entities.get(context.casefold()) if context else None,
+                    "verb": match.group("verb").lower(),
+                    "negated": bool(match.group("negation")),
+                    "prep": match.group("prep").lower() if match.group("prep") else None,
+                    "surface_text": match.group(0),
+                }
+            )
+        return assertions

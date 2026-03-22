@@ -33,7 +33,7 @@ def patch_prompt_repo(monkeypatch: pytest.MonkeyPatch, prompt_dir: Path):
 
 @pytest.fixture()
 def stub_graph(monkeypatch: pytest.MonkeyPatch):
-    from src.infrastructure import neo4j_client
+    from src.infrastructure import wikidata_client
 
     def fake_init(self, config, fallback_graph=None):
         self.config = config
@@ -43,23 +43,15 @@ def stub_graph(monkeypatch: pytest.MonkeyPatch):
         return [Candidate(iri="http://example.org/concept/1", label="Graph Theory", score=0.9)]
 
     def fake_path(self, source_iri: str, target_iri: str, max_hops: int = 2, hub_threshold=None):
-        return [
-            PathStep(
-                subject_iri=source_iri,
-                subject_label="A",
-                predicate="related",
-                object_iri=target_iri,
-                object_label="B",
-            )
-        ]
+        return None
 
     def fake_health(self):
         return {"status": "ok"}
 
-    monkeypatch.setattr(neo4j_client.SkosGraphGateway, "__init__", fake_init)
-    monkeypatch.setattr(neo4j_client.SkosGraphGateway, "search_candidates", fake_search)
-    monkeypatch.setattr(neo4j_client.SkosGraphGateway, "shortest_path", fake_path)
-    monkeypatch.setattr(neo4j_client.SkosGraphGateway, "health", fake_health)
+    monkeypatch.setattr(wikidata_client.WikidataGateway, "__init__", fake_init)
+    monkeypatch.setattr(wikidata_client.WikidataGateway, "search_candidates", fake_search)
+    monkeypatch.setattr(wikidata_client.WikidataGateway, "shortest_path", fake_path)
+    monkeypatch.setattr(wikidata_client.WikidataGateway, "health", fake_health)
 
 
 @pytest.fixture()
@@ -120,5 +112,5 @@ def test_health_endpoint(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["neo4j"]["status"] == "ok"
+    assert data["wikidata"]["status"] == "ok"
     assert data["llm"]["status"] == "ok"

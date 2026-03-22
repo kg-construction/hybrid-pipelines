@@ -48,7 +48,7 @@ class StubService:
         )
 
     def health(self):
-        return {"neo4j": {"status": "ok"}, "llm": {"status": "ok"}}
+        return {"wikidata": {"status": "ok"}, "llm": {"status": "ok"}}
 
 
 def make_client():
@@ -64,7 +64,7 @@ def test_health_ok():
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["neo4j"]["status"] == "ok"
+    assert data["wikidata"]["status"] == "ok"
     assert data["llm"]["status"] == "ok"
 
 

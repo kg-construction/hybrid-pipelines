@@ -11,7 +11,7 @@ def create_analyze_blueprint(service: KnowledgeGraphService) -> Blueprint:
     @blueprint.route("/health", methods=["GET"])
     def health() -> tuple:
         status = service.health()
-        http_status = 200 if status.get("neo4j", {}).get("status") == "ok" and status.get("llm", {}).get("status") == "ok" else 503
+        http_status = 200 if status.get("wikidata", {}).get("status") == "ok" and status.get("llm", {}).get("status") == "ok" else 503
         return jsonify(status), http_status
 
     @blueprint.route("/analyze", methods=["POST"])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -18,11 +19,11 @@ from ..domain.models import (
     PathEvidence,
     PathStep,
 )
-from ..infrastructure.neo4j_client import SkosGraphGateway
 from ..infrastructure.ollama_client import OllamaClient
 from ..infrastructure.prompt_repository import PromptRepository
 from ..infrastructure.rdf_builder import RDFBuilder
 from ..infrastructure.request_logger import RequestLogger
+from ..infrastructure.wikidata_client import WikidataGateway
 
 
 class KnowledgeGraphService:
@@ -34,6 +35,38 @@ class KnowledgeGraphService:
     4) RDF graph materialization (Turtle + JSON-LD)
     """
 
+    _STOPWORDS = {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "if",
+        "then",
+        "than",
+        "from",
+        "to",
+        "of",
+        "in",
+        "on",
+        "at",
+        "by",
+        "for",
+        "with",
+        "without",
+        "is",
+        "are",
+        "was",
+        "were",
+        "am",
+        "be",
+        "being",
+        "been",
+        "not",
+        "no",
+    }
+
     def __init__(
         self,
         prompt_repository: PromptRepository,
@@ -43,7 +76,7 @@ class KnowledgeGraphService:
         path_summary_prompt: str,
         candidate_decision_prompt: str,
         ollama_client: Optional[OllamaClient] = None,
-        graph_gateway: Optional[SkosGraphGateway] = None,
+        graph_gateway: Optional[WikidataGateway] = None,
         rdf_builder: Optional[RDFBuilder] = None,
         rdf_log_path: Optional[Path] = None,
         request_logger: Optional[RequestLogger] = None,
@@ -66,7 +99,7 @@ class KnowledgeGraphService:
         if not self.ollama_client:
             raise RuntimeError("LLM client is not configured.")
         if not self.graph_gateway:
-            raise RuntimeError("Graph gateway is not configured. Configure Neo4j or fallback graph.")
+            raise RuntimeError("Entity gateway is not configured. Configure Wikidata access.")
 
         system_prompt_name = request.system_prompt_name or self.default_system_prompt
         system_prompt_text = self.prompt_repository.load_prompt(system_prompt_name)
@@ -123,9 +156,9 @@ class KnowledgeGraphService:
         )
 
     def health(self) -> dict:
-        neo4j_status = self.graph_gateway.health() if self.graph_gateway else {"status": "unconfigured"}
+        wikidata_status = self.graph_gateway.health() if self.graph_gateway else {"status": "unconfigured"}
         llm_status = self.ollama_client.health_check() if self.ollama_client else {"status": "unconfigured"}
-        return {"neo4j": neo4j_status, "llm": llm_status}
+        return {"wikidata": wikidata_status, "llm": llm_status}
 
     def _extract_mentions(
         self,
@@ -166,20 +199,67 @@ class KnowledgeGraphService:
                     confidence=item.get("confidence"),
                 )
             )
+        mentions = self._merge_mentions(text, mentions)
         return MentionExtraction(mentions=mentions), generation
+
+    def _merge_mentions(self, text: str, llm_mentions: list[Mention]) -> list[Mention]:
+        merged: dict[tuple[int | None, int | None, str], Mention] = {}
+        for mention in llm_mentions + self._heuristic_mentions(text):
+            key = (mention.start, mention.end, mention.surface.casefold())
+            current = merged.get(key)
+            if current is None or (mention.confidence or 0.0) > (current.confidence or 0.0):
+                merged[key] = mention
+        return sorted(
+            merged.values(),
+            key=lambda mention: (
+                mention.start if mention.start is not None else 10**9,
+                mention.end if mention.end is not None else 10**9,
+                mention.surface.casefold(),
+            ),
+        )
+
+    def _heuristic_mentions(self, text: str) -> list[Mention]:
+        mentions: list[Mention] = []
+
+        def add(surface: str, start: int, end: int, label: str = "Entity", confidence: float = 0.35) -> None:
+            normalized = surface.strip()
+            if not normalized:
+                return
+            if normalized.casefold() in self._STOPWORDS:
+                return
+            mentions.append(
+                Mention(
+                    surface=normalized,
+                    label=label,
+                    start=start,
+                    end=end,
+                    confidence=confidence,
+                )
+            )
+
+        for match in re.finditer(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", text):
+            add(match.group(1), match.start(1), match.end(1), confidence=0.45)
+
+        for match in re.finditer(r"\b(?:a|an|the)\s+([A-Za-z][A-Za-z-]*)\b", text, flags=re.IGNORECASE):
+            add(match.group(1), match.start(1), match.end(1))
+
+        for match in re.finditer(r"\b(?:from|of|in|on|at|to)\s+(?:a|an|the\s+)?([A-Za-z][A-Za-z-]*)\b", text, flags=re.IGNORECASE):
+            add(match.group(1), match.start(1), match.end(1))
+
+        return mentions
 
     def _select_candidates(self, mentions: MentionExtraction, top_k: int, idempotence_key: str) -> list[MentionCandidates]:
         selections: list[MentionCandidates] = []
         for mention in mentions.mentions:
             self._log_event(
                 idempotence_key,
-                "neo4j_request",
+                "wikidata_request",
                 {"stage": "candidate_selection", "surface": mention.surface, "top_k": top_k},
             )
             candidates = self.graph_gateway.search_candidates(surface=mention.surface, limit=top_k)
             self._log_event(
                 idempotence_key,
-                "neo4j_response",
+                "wikidata_response",
                 {"stage": "candidate_selection", "surface": mention.surface, "candidates": [c.to_dict() for c in candidates]},
             )
             selections.append(MentionCandidates(surface=mention.surface, candidates=candidates))
@@ -202,7 +282,7 @@ class KnowledgeGraphService:
                     for other_candidate in other.candidates:
                         self._log_event(
                             idempotence_key,
-                            "neo4j_request",
+                            "wikidata_request",
                             {
                                 "stage": "shortest_path",
                                 "source": candidate.iri,
@@ -220,7 +300,7 @@ class KnowledgeGraphService:
                         if path:
                             self._log_event(
                                 idempotence_key,
-                                "neo4j_response",
+                                "wikidata_response",
                                 {
                                     "stage": "shortest_path",
                                     "source": candidate.iri,
@@ -236,7 +316,7 @@ class KnowledgeGraphService:
                         continue
                     self._log_event(
                         idempotence_key,
-                        "neo4j_request",
+                        "wikidata_request",
                         {
                             "stage": "shortest_path",
                             "source": candidate.iri,
@@ -254,7 +334,7 @@ class KnowledgeGraphService:
                     if path:
                         self._log_event(
                             idempotence_key,
-                            "neo4j_response",
+                            "wikidata_response",
                             {
                                 "stage": "shortest_path",
                                 "source": candidate.iri,
