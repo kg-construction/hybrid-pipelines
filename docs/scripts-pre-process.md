@@ -2,13 +2,15 @@
 
 ## Overview
 
-The `pre-process.py` script pre-processes ACM CCS RDF/XML files to fix malformed namespaces and converts them to Turtle format. This is a necessary step before importing the RDF data into Neo4j.
+The `pre-process.py` script pre-processes ACM CCS RDF/XML files to fix malformed namespaces and converts them to Turtle format.
+
+This script is kept for legacy graph-backed workflows and dataset preparation. It is not required by the active Wikidata-backed runtime.
 
 ## Purpose
 
 The script performs two main operations:
 1. **Fixes malformed RDF/XML**: Corrects namespace declarations and language attributes in the source RDF/XML file
-2. **Converts to Turtle**: Transforms the fixed RDF/XML into Turtle (TTL) format, which is more efficient for parsing and importing
+2. **Converts to Turtle**: Transforms the fixed RDF/XML into Turtle (TTL) format, which is more efficient for parsing and optional downstream import
 
 ## Input Files
 
@@ -17,7 +19,7 @@ The script performs two main operations:
 ## Output Files
 
 - **Fixed RDF/XML**: `data/acm-ccs-fixed.rdf` - The corrected RDF/XML file with proper namespaces
-- **Turtle**: `data/acm-ccs.ttl` - The final Turtle format file ready for Neo4j import
+- **Turtle**: `data/acm-ccs.ttl` - The final Turtle format file for optional downstream use
 
 ## What It Does
 
