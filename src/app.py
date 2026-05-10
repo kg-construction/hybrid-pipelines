@@ -17,6 +17,23 @@ from .infrastructure import (
 )
 
 
+def _int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value in (None, ""):
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value in (None, ""):
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def create_app() -> Flask:
     load_dotenv()
 
@@ -52,6 +69,11 @@ def create_app() -> Flask:
         rdf_builder=rdf_builder,
         rdf_log_path=rdf_log_path,
         request_logger=request_logger,
+        path_candidate_limit=_int_env("PATH_CANDIDATE_LIMIT", 1),
+        path_within_mentions=_bool_env("PATH_WITHIN_MENTIONS", False),
+        enable_paths=_bool_env("ENABLE_PATHS", False),
+        max_mentions=_int_env("MAX_MENTIONS", 8),
+        candidate_decision_mode=os.getenv("CANDIDATE_DECISION_MODE", "first"),
     )
     app.register_blueprint(create_analyze_blueprint(service))
 

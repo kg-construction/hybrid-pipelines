@@ -81,6 +81,10 @@ def test_analyze_pipeline_builds_rdf(tmp_path: Path):
         graph_gateway=graph,
         rdf_builder=rdf_builder,
         rdf_log_path=rdf_log_path,
+        path_candidate_limit=2,
+        path_within_mentions=True,
+        enable_paths=True,
+        candidate_decision_mode="llm",
     )
 
     request = AnalyzeRequest(text="graph theory advances", prompt_name="ner", system_prompt_name="system", top_k=2, max_hops=2)
@@ -157,3 +161,45 @@ def test_analyze_adds_heuristic_mentions_and_negated_copula_rdf(tmp_path: Path):
     assert "http://www.wikidata.org/entity/Q10884" in response.rdf.turtle
     assert 'ex:copulaVerb "is"' in response.rdf.turtle
     assert "ex:negated true" in response.rdf.turtle
+
+
+def test_analyze_falls_back_when_ner_json_is_truncated(tmp_path: Path):
+    prompts = {
+        "ner": "NER ${USER_TEXT}",
+        "system": "System prompt",
+        "path": "Paths ${PATHS_JSON}",
+        "summary": "Summary ${PATH_SENTENCES_JSON}",
+        "decision": "Decision ${CANDIDATES_JSON}",
+    }
+
+    class TruncatedNerOllama(StubOllamaClient):
+        def generate(self, system_prompt: str, prompt: str, prompt_name: str | None = None, input_text: str | None = None):
+            self.calls.append({"system": system_prompt, "prompt_name": prompt_name, "prompt": prompt, "input_text": input_text})
+            if prompt_name == "ner":
+                return {"response": '{"mentions": [{"surface": "Question rewriting", "label": "Task", "start": 0'}
+            return {"response": "{}"}
+
+    class AnySurfaceGateway(StubGraphGateway):
+        def search_candidates(self, surface: str, limit: int = 5):
+            self.search_calls.append({"surface": surface, "limit": limit})
+            return [Candidate(iri=f"http://example.org/{surface.replace(' ', '_')}", label=surface, score=1.0)]
+
+    service = KnowledgeGraphService(
+        prompt_repository=DummyPromptRepo(prompts=prompts),
+        default_prompt="ner",
+        default_system_prompt="system",
+        path_to_text_prompt="path",
+        path_summary_prompt="summary",
+        candidate_decision_prompt="decision",
+        ollama_client=TruncatedNerOllama(),
+        graph_gateway=AnySurfaceGateway(),
+        rdf_builder=RDFBuilder(base_namespace="http://example.org/"),
+        rdf_log_path=tmp_path / "rdf_log.csv",
+    )
+
+    response = service.analyze(
+        AnalyzeRequest(text="Question rewriting improves conversational question answering.", prompt_name="ner", system_prompt_name="system")
+    )
+
+    assert response.mentions.mentions
+    assert "Question" in response.rdf.turtle or "rewriting" in response.rdf.turtle

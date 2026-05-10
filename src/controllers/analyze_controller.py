@@ -23,7 +23,7 @@ def create_analyze_blueprint(service: KnowledgeGraphService) -> Blueprint:
 
         prompt_name = data.get("prompt_name")
         system_prompt_name = data.get("system_prompt_name")
-        top_k = data.get("top_k", 5)
+        top_k = data.get("top_k", 2)
         max_hops = data.get("max_hops", 2)
         hub_threshold = data.get("hub_threshold")
         idempotence_key = data.get("idempotence_key")

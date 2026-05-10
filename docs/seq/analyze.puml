@@ -13,11 +13,13 @@ end box
 
 collections "Prompt files\n(prompt/)" as PromptFiles
 database "CSV log\n(OLLAMA_CSV_PATH)" as CSV
-database "Wikidata Action API\n(wbsearchentities)" as WikidataAPI
+database "Analyze event log\n(ANALYZE_LOG_PATH)" as EventLog
+database "RDF log\n(RDF_LOG_PATH)" as RDFLog
+database "Wikidata Action API\n(search + entity claims)" as WikidataAPI
 boundary "Ollama /api/generate" as OA
 
 User -> Client: Request analysis
-Client -> Controller ++: POST /analyze {text, prompt_name?, system_prompt_name?, top_k?, max_hops?, hub_threshold?}
+Client -> Controller ++: POST /analyze {text, prompt_name?, system_prompt_name?, top_k?, max_hops?, hub_threshold?, idempotence_key?}
 note right of Controller
 payload example:
 {
@@ -27,6 +29,7 @@ payload example:
 }
 end note
 Controller -> Controller: validate text present
+Controller -> Controller: validate numeric options
 Controller -> Service ++: build AnalyzeRequest
 
 Service -> Repo ++: load system prompt
@@ -64,15 +67,40 @@ end
 note right of WD
 - direct Wikidata lookup
 - no local Neo4j required
-- shortest_path currently returns no path evidence
+- shortest_path uses bounded Wikidata claim traversal
 end note
 
-Service -> Repo ++: load candidate-decision prompt
-Repo --> Service --: prompt
-Service -> OC ++: generate(candidate-decision)
-OC -> OA ++: POST /api/generate
-OA --> OC --: chosen entity JSON
-OC --> Service --: decision payloads
+Service -> WD ++: shortest_path between candidate pairs
+WD -> WikidataAPI: GET wbgetentities (claims + labels)
+WikidataAPI --> WD --: entity claims
+WD --> Service --: path evidence or none
+
+alt path evidence found
+  Service -> Repo ++: load path-to-text prompt
+  Repo --> Service --: prompt
+  Service -> OC ++: generate(path-to-text)
+  OC -> OA ++: POST /api/generate
+  OA --> OC --: path sentences JSON
+  OC --> Service --: path sentences
+
+  Service -> Repo ++: load path-summary prompt
+  Repo --> Service --: prompt
+  Service -> OC ++: generate(path-summary)
+  OC -> OA ++: POST /api/generate
+  OA --> OC --: summary text
+  OC --> Service --: path summary
+else no path evidence
+  Service -> Service: continue with empty path summary
+end
+
+loop for each mention
+  Service -> Repo ++: load candidate-decision prompt
+  Repo --> Service --: prompt
+  Service -> OC ++: generate(candidate-decision)
+  OC -> OA ++: POST /api/generate
+  OA --> OC --: chosen entity JSON
+  OC --> Service --: decision payload
+end
 
 Service -> RDF ++: build RDF (doc + mentions + grounded entities + assertions)
 RDF --> Service --: Turtle + JSON-LD
@@ -80,6 +108,11 @@ note right of RDF
 May add ex:Assertion nodes for patterns like:
 subject + copula + negation + object + context entity
 end note
+
+opt logging configured
+  Service -> EventLog: append grouped events by idempotence_key
+  Service -> RDFLog: append final RDF row
+end
 
 Service --> Controller --: AnalyzeResponse
 Controller --> Client --: 200 {text, rdf}

@@ -65,6 +65,17 @@ class KnowledgeGraphService:
         "been",
         "not",
         "no",
+        "we",
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "they",
+        "this",
+        "that",
+        "these",
+        "those",
     }
 
     def __init__(
@@ -80,6 +91,11 @@ class KnowledgeGraphService:
         rdf_builder: Optional[RDFBuilder] = None,
         rdf_log_path: Optional[Path] = None,
         request_logger: Optional[RequestLogger] = None,
+        path_candidate_limit: int = 1,
+        path_within_mentions: bool = False,
+        enable_paths: bool = False,
+        max_mentions: int = 8,
+        candidate_decision_mode: str = "first",
     ) -> None:
         self.prompt_repository = prompt_repository
         self.default_prompt = default_prompt
@@ -92,6 +108,11 @@ class KnowledgeGraphService:
         self.rdf_builder = rdf_builder or RDFBuilder()
         self.rdf_log_path = rdf_log_path
         self.request_logger = request_logger
+        self.path_candidate_limit = max(1, int(path_candidate_limit))
+        self.path_within_mentions = path_within_mentions
+        self.enable_paths = enable_paths
+        self.max_mentions = max(1, int(max_mentions))
+        self.candidate_decision_mode = candidate_decision_mode
 
     def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
         start_time = datetime.now(timezone.utc)
@@ -185,8 +206,8 @@ class KnowledgeGraphService:
         payload = generation.get("response") or "{}"
         try:
             data = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            raise ValueError("NER stage returned invalid JSON.") from exc
+        except json.JSONDecodeError:
+            data = {"mentions": self._mentions_from_truncated_json(payload)}
 
         mentions: list[Mention] = []
         for item in data.get("mentions", []):
@@ -202,6 +223,18 @@ class KnowledgeGraphService:
         mentions = self._merge_mentions(text, mentions)
         return MentionExtraction(mentions=mentions), generation
 
+    def _mentions_from_truncated_json(self, payload: str) -> list[dict]:
+        mentions: list[dict] = []
+        for match in re.finditer(r'\{\s*"surface"\s*:\s*"([^"]+)"[^{}]*\}', payload):
+            try:
+                item = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                continue
+            mentions.append(item)
+            if len(mentions) >= self.max_mentions:
+                break
+        return mentions
+
     def _merge_mentions(self, text: str, llm_mentions: list[Mention]) -> list[Mention]:
         merged: dict[tuple[int | None, int | None, str], Mention] = {}
         for mention in llm_mentions + self._heuristic_mentions(text):
@@ -216,7 +249,7 @@ class KnowledgeGraphService:
                 mention.end if mention.end is not None else 10**9,
                 mention.surface.casefold(),
             ),
-        )
+        )[: self.max_mentions]
 
     def _heuristic_mentions(self, text: str) -> list[Mention]:
         mentions: list[Mention] = []
@@ -272,14 +305,17 @@ class KnowledgeGraphService:
         hub_threshold: int | None,
         idempotence_key: str,
     ) -> list[list[PathStep]]:
+        if not self.enable_paths:
+            return []
+
         paths: list[list[PathStep]] = []
         for idx, selection in enumerate(candidate_selections):
-            for candidate in selection.candidates:
+            for candidate in selection.candidates[: self.path_candidate_limit]:
                 # Paths to candidates in other mentions
                 for other_idx, other in enumerate(candidate_selections):
                     if idx == other_idx:
                         continue
-                    for other_candidate in other.candidates:
+                    for other_candidate in other.candidates[: self.path_candidate_limit]:
                         self._log_event(
                             idempotence_key,
                             "wikidata_request",
@@ -310,8 +346,11 @@ class KnowledgeGraphService:
                             )
                             paths.append(path)
 
+                if not self.path_within_mentions:
+                    continue
+
                 # Optional intra-mention disambiguation (pairwise within same mention)
-                for other_candidate in selection.candidates:
+                for other_candidate in selection.candidates[: self.path_candidate_limit]:
                     if other_candidate.iri == candidate.iri:
                         continue
                     self._log_event(
@@ -407,6 +446,20 @@ class KnowledgeGraphService:
         prompt_template = self.prompt_repository.load_prompt(self.candidate_decision_prompt)
 
         for mention, selection in zip(mentions.mentions, candidate_selections):
+            if self.candidate_decision_mode == "first":
+                decisions.append(
+                    DisambiguatedMention(
+                        surface=mention.surface,
+                        label=mention.label,
+                        start=mention.start,
+                        end=mention.end,
+                        confidence=mention.confidence,
+                        chosen=selection.candidates[0] if selection.candidates else None,
+                        evidence=PathEvidence(paths=paths, summary=summary_text or None),
+                    )
+                )
+                continue
+
             context = self._extract_context(text, mention.start, mention.end)
             candidate_payload = [c.to_dict() for c in selection.candidates]
             message = (

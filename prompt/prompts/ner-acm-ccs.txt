@@ -9,6 +9,9 @@ Return JSON only in the format:
 Guidelines:
 - Use character offsets (start inclusive, end exclusive).
 - Extract named entities and common-noun concepts that matter to the sentence meaning.
+- Return at most 8 mentions, ordered by importance.
+- Prefer multi-word scientific concepts, datasets, tasks, methods, metrics, and systems.
+- Ignore pronouns, generic filler words, and duplicate surfaces.
 - Include concrete objects, classes, and categories when they are relation arguments.
 - Labels can be broad (e.g., "Entity", "Object", "Class", "Field", "Method", "Dataset", "Task", "Algorithm", "Metric").
 - Confidence is 0-1.
